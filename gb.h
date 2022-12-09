@@ -29,6 +29,12 @@ void dec16(uint16_t *value);
 // Increment the given 8-bit value and update the flags
 void inc(uint8_t *value);
 
+// Increment an 8-bit value
+void inc8(uint8_t *value);
+
+// Increment a 16-bit value
+void inc16(uint16_t *value);
+
 // Rotate the given 8-bit value left and update the flags
 uint8_t rlc(uint8_t value);
 
@@ -42,3 +48,6 @@ void write_byte(uint16_t address, uint8_t value);
 // Add the values of the HL and BC registers
 void add_hl(uint16_t* hl, uint16_t* bc);
 #endif
+
+// Set a CPU flag if the given condition is true
+void set_flag_cond(uint8_t flag, uint8_t cond);

@@ -149,16 +149,36 @@ void run_gb()
     // Decode and execute the instruction
     switch (opcode)
     {
+
+        // NOP (No Operation)
+        case 0x00:
+            break;
+
+        // LD BC, d16 (Load 16-bit immediate value into BC)
+        case 0x01:
+            cpu.bc = fetch_word();
+            break;
+
+        // LD (BC), A (Load A into memory at address in BC)
+        case 0x02:
+            write_byte(cpu.bc, a);
+            break;
+
+        // INC BC (Increment BC)
+        case 0x03:
+            inc16(&cpu.bc);
+            break;
+
+        // INC B (Increment B)
+        case 0x04:
+            inc8(&cpu.b);
+            break;
+
         // DEC B
         case 0x05:
             dec8(&cpu.b);
             break;
-
-        // INC B
-        case 0x04:
-            inc(&cpu.b);
-            break;
-
+    
         // LD B,d8
         case 0x06:
             cpu.b = fetch_byte();
@@ -349,6 +369,31 @@ void inc(uint8_t *value)
 }
 
 
+// Increment an 8-bit value
+void inc8(uint8_t *value)
+{
+    // Increment the value
+    *value += 1;
+
+    // Update the flags
+    clear_flag(N_FLAG);
+    set_flag_cond(Z_FLAG, *value == 0);
+    clear_flag(H_FLAG);
+    clear_flag(C_FLAG);
+}
+
+// Increment a 16-bit value
+void inc16(uint16_t *value)
+{
+    // Increment the value
+    *value += 1;
+
+    // Update the flags
+    clear_flag(N_FLAG);
+    clear_flag(C_FLAG);
+}
+
+
 // Rotate the given 8-bit value left and update the flags
 uint8_t rlc(uint8_t value)
 {
@@ -440,5 +485,14 @@ void add_hl(uint16_t* hl, uint16_t* bc)
     if (result & 0x10000)
     {
         set_flag(C_FLAG);
+    }
+}
+
+// Set a CPU flag if the given condition is true
+void set_flag_cond(uint8_t flag, uint8_t cond)
+{
+    if (cond)
+    {
+        cpu.f |= flag;
     }
 }
