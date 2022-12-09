@@ -1,4 +1,6 @@
+#include <stdio.h>
 #include <stdint.h>
+#include "gb.h"
 
 // Gameboy memory sizes
 const int GB_ROM_SIZE = 0x8000;
@@ -22,7 +24,7 @@ uint8_t *hram;
 
 // The gameboy registers
 uint16_t pc;
-uint8_t sp;
+uint16_t sp;
 uint8_t a;
 uint8_t b;
 uint8_t c;
@@ -100,4 +102,30 @@ int init_gb()
     flags = 0xB0;
 
     return 0;
+}
+
+// The number of clock cycles per frame
+const int CYCLES_PER_FRAME = 4194304 / 60;
+
+// The number of cycles since the last frame
+int cycles_since_last_frame = 0;
+
+// Run the gameboy emulator
+void run_gb()
+{
+    // Fetch and execute instructions until a frame is complete
+    while (cycles_since_last_frame < CYCLES_PER_FRAME)
+    {
+        // TODO: Fetch and execute the next instruction
+
+        // TODO: Handle interrupts and other hardware events
+
+        // Increment the cycle counter
+        cycles_since_last_frame++;
+    }
+
+    // TODO: Update the video and audio output
+
+    // Reset the cycle counter
+    cycles_since_last_frame = 0;
 }

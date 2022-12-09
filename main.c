@@ -24,9 +24,16 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    // TODO: Read the ROM file and initialize the emulator
+    // Load the ROM and initialize the emulator
+    if (load_rom(rom_file) != 0 || init_gb() != 0)
+    {
+        fclose(rom_file);
+        return 1;
+    }
 
-    // TODO: Run the emulator
+    // Run the gameboy emulator
+    while (1)
+        run_gb();
 
     // Close the ROM file and exit
     fclose(rom_file);

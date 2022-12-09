@@ -7,5 +7,5 @@ find_package(SDL2 REQUIRED)
 
 include_directories(${SDL2_INCLUDE_DIRS})
 
-add_executable(gbx main.c window.c)
+add_executable(gbx main.c gb.c window.c)
 target_link_libraries(gbx ${SDL2_LIBRARIES})
