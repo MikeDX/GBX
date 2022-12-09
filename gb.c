@@ -37,6 +37,35 @@ uint8_t flags;
 // The gameboy type (GB or GBC)
 int gb_type;
 
+// Declare the memory array with a size of 65536 bytes to cover the entire gameboy address space
+uint8_t memory[65536];
+
+// Declare a structure to hold the gameboy's CPU registers
+// Define the CPU struct
+typedef struct 
+{
+	// Word registers
+	union
+	{
+		uint16_t af, bc, de, hl, ix, iy, sp;
+	};
+	
+	// Byte registers
+	union
+	{
+		uint8_t f, a, c, b, e, d, l, h, ixl, ixh, iyl, iyh;
+	};
+} CPU;
+
+// Declare a global variable to hold the gameboy's CPU
+CPU cpu;
+
+// Declare constants to represent the different flags in the gameboy's CPU
+#define Z_FLAG 0x80
+#define N_FLAG 0x40
+#define H_FLAG 0x20
+#define C_FLAG 0x10
+
 // Load the gameboy ROM
 int load_rom(FILE *rom_file)
 {
@@ -113,19 +142,303 @@ int cycles_since_last_frame = 0;
 // Run the gameboy emulator
 void run_gb()
 {
-    // Fetch and execute instructions until a frame is complete
-    while (cycles_since_last_frame < CYCLES_PER_FRAME)
+    // Fetch the next instruction
+    uint8_t opcode = fetch_byte();
+    static uint16_t address = 0x0;
+
+    // Decode and execute the instruction
+    switch (opcode)
     {
-        // TODO: Fetch and execute the next instruction
+        // DEC B
+        case 0x05:
+            dec8(&cpu.b);
+            break;
 
-        // TODO: Handle interrupts and other hardware events
+        // INC B
+        case 0x04:
+            inc(&cpu.b);
+            break;
 
-        // Increment the cycle counter
-        cycles_since_last_frame++;
+        // LD B,d8
+        case 0x06:
+            cpu.b = fetch_byte();
+            break;
+
+        // RLCA
+        case 0x07:
+            cpu.a = rlc(cpu.a);
+            break;
+
+        // LD (a16),SP
+        case 0x08:
+            address = fetch_word();
+            write_byte(address, cpu.sp & 0xFF);
+            write_byte(address + 1, cpu.sp >> 8);
+            break;
+
+        // ADD HL,BC
+        case 0x09:
+            add_hl(&cpu.hl, &cpu.bc);
+            break;
+
+        // LD A,(BC)
+        case 0x0A:
+            cpu.a = read_byte(cpu.bc);
+            break;
+
+        // DEC BC
+        case 0x0B:
+            dec16(&cpu.bc);
+            break;
+
+        // INC C
+        case 0x0C:
+            inc(&cpu.c);
+            break;
+
+        // DEC C
+        case 0x0D:
+            dec8(&cpu.c);
+            break;
+
+        // LD C,d8
+        case 0x0E:
+            cpu.c = fetch_byte();
+            break;
+
+        // RRCA
+        case 0x0F:
+            cpu.a = rrc(cpu.a);
+            break;
+        default:
+                printf("Unknown opcode  0x%02x\n", opcode);
+                break;           
     }
+        
+    // TODO: Fetch and execute the next instruction
+
+    // TODO: Handle interrupts and other hardware events
+
+    // Increment the cycle counter
+    cycles_since_last_frame++;
 
     // TODO: Update the video and audio output
 
     // Reset the cycle counter
     cycles_since_last_frame = 0;
+}
+
+
+uint8_t fetch_byte()
+{
+    // Read the next byte from memory at the PC address
+    uint8_t data = read_byte(pc);
+
+    // Increment the PC to point to the next instruction
+    pc++;
+
+    return data;
+}
+
+uint8_t read_byte(uint16_t address)
+{
+    // Read the byte from memory at the given address
+    uint8_t data = memory[address];
+
+    return data;
+}
+
+// Set the given flag in the gameboy's CPU
+void set_flag(uint8_t flag)
+{
+    cpu.f |= flag;
+}
+
+// Clear the given flag in the gameboy's CPU
+void clear_flag(uint8_t flag)
+{
+    cpu.f &= ~flag;
+}
+
+
+// Decrement the given 8-bit value and update the flags
+void dec8(uint8_t *value)
+{
+    // Decrement the value
+    *value -= 1;
+
+    // Set the zero flag if the result is zero
+    if (*value == 0)
+    {
+        set_flag(Z_FLAG);
+    }
+    else
+    {
+        clear_flag(Z_FLAG);
+    }
+
+    // Set the subtract flag
+    set_flag(N_FLAG);
+
+    // Set the half-carry flag if the lower 4 bits of the result are 0
+    if ((*value & 0x0F) == 0)
+    {
+        set_flag(H_FLAG);
+    }
+    else
+    {
+        clear_flag(H_FLAG);
+    }
+}
+
+
+// Decrement a 16-bit value
+void dec16(uint16_t *value)
+{
+    // Decrement the value
+    (*value)--;
+
+    // Set the zero flag if the value is zero
+    if (*value == 0)
+    {
+        set_flag(Z_FLAG);
+    }
+
+    // Set the half carry flag if the lower 4 bits of the value were 0 before the decrement
+    if ((*value & 0x0F) == 0)
+    {
+        set_flag(H_FLAG);
+    }
+
+    // Clear the carry flag
+    clear_flag(C_FLAG);
+
+    // Set the negative flag
+    set_flag(N_FLAG);
+}
+
+
+// Increment the given 8-bit value and update the flags
+void inc(uint8_t *value)
+{
+    // Increment the value
+    *value += 1;
+
+    // Set the zero flag if the result is zero
+    if (*value == 0)
+    {
+        set_flag(Z_FLAG);
+    }
+    else
+    {
+        clear_flag(Z_FLAG);
+    }
+
+    // Clear the subtract flag
+    clear_flag(N_FLAG);
+
+    // Set the half-carry flag if the lower 4 bits of the result are 0
+    if ((*value & 0x0F) == 0)
+    {
+        set_flag(H_FLAG);
+    }
+    else
+    {
+        clear_flag(H_FLAG);
+    }
+}
+
+
+// Rotate the given 8-bit value left and update the flags
+uint8_t rlc(uint8_t value)
+{
+    // Rotate the value left
+    uint8_t carry = value & 0x80;
+    value = (value << 1) | (carry >> 7);
+
+    // Set the zero flag if the result is zero
+    if (value == 0)
+    {
+        set_flag(Z_FLAG);
+    }
+    else
+    {
+        clear_flag(Z_FLAG);
+    }
+
+    // Clear the subtract flag
+    clear_flag(N_FLAG);
+
+    // Clear the half-carry flag
+    clear_flag(H_FLAG);
+
+    // Set the carry flag if a carry occurred
+    if (carry != 0)
+    {
+        set_flag(C_FLAG);
+    }
+    else
+    {
+        clear_flag(C_FLAG);
+    }
+
+    // Return the rotated value
+    return value;
+}
+
+uint8_t rrc(uint8_t value)
+{
+    uint8_t carry = value & 0x01;
+    value = (value >> 1) | (carry << 7);
+    if (value == 0)
+    {
+        // Set the zero flag
+        cpu.f |= Z_FLAG;
+    }
+    else
+    {
+        // Clear the zero flag
+        cpu.f &= ~Z_FLAG;
+    }
+    // Set the carry flag
+    cpu.f |= (carry << 4);
+    return value;
+}
+
+
+// Fetch a 16-bit word from the gameboy's memory
+uint16_t fetch_word()
+{
+    // Fetch the lower 8 bits of the word
+    uint8_t low = fetch_byte();
+
+    // Fetch the upper 8 bits of the word
+    uint8_t high = fetch_byte();
+
+    // Return the 16-bit word
+    return (high << 8) | low;
+}
+
+
+// Write a byte to the gameboy's memory
+void write_byte(uint16_t address, uint8_t value)
+{
+    memory[address] = value;
+}
+
+
+// Add the values of the HL and BC registers
+void add_hl(uint16_t* hl, uint16_t* bc)
+{
+    // Add the values of the HL and BC registers
+    uint32_t result = *hl + *bc;
+
+    // Set the HL register to the lower 16 bits of the result
+    *hl = result & 0xFFFF;
+
+    // Set the carry flag if there was a carry from bit 15 to bit 16
+    if (result & 0x10000)
+    {
+        set_flag(C_FLAG);
+    }
 }
