@@ -16,7 +16,5 @@ jobs:
         sudo apt-get install -y cmake libsdl2-dev
     - name: Configure and build
       run: |
-            mkdir build
-            cmake -S .. -B build
-            cd build 
-            make
+            cmake -S . -B build
+            cmake --build build
